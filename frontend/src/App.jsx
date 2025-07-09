@@ -3,6 +3,7 @@ import { Container, Typography, Button, TextField, Box, Grid, Paper, CircularPro
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Use environment variable or fallback to localhost
+console.log('API_URL:', API_URL); // Debug: log the API URL being used
 
 function App() {
   const [pdf, setPdf] = useState(null);
@@ -32,10 +33,12 @@ function App() {
     const formData = new FormData();
     formData.append('file', pdf);
     try {
+      console.log('Attempting to upload to:', `${API_URL}/upload`); // Debug: log the upload URL
       const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData
       });
+      console.log('Upload response status:', res.status); // Debug: log response status
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Upload failed');
@@ -43,6 +46,7 @@ function App() {
       const data = await res.json();
       setFilename(data.filename);
     } catch (err) {
+      console.error('Upload error:', err); // Debug: log the full error
       setError(`Upload failed: ${err.message}`);
     } finally {
       setLoading(false);

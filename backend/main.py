@@ -11,6 +11,10 @@ import openai
 from PIL import Image, ImageDraw, ImageFont
 import io
 import zipfile
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
@@ -378,16 +382,12 @@ def generate_content(filename: str = Form(...)):
 def generate_instagram_images_endpoint(filename: str = Form(...)):
     """Generate Instagram carousel images from uploaded PDF"""
     try:
-        print(f"Starting Instagram image generation for file: {filename}")
-        
         # Get API key
         api_key = get_openai_api_key()
-        print("API key retrieved successfully")
         
         # Construct file path
         file_path = os.path.join(UPLOAD_DIR, filename)
         if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
             return JSONResponse(
                 status_code=404,
                 content={"error": f"File {filename} not found"}
@@ -396,33 +396,26 @@ def generate_instagram_images_endpoint(filename: str = Form(...)):
         # Extract and clean text from PDF
         print(f"Extracting text from {file_path}...")
         text = extract_and_clean_text(file_path)
-        print(f"Text extracted, length: {len(text)}")
         
         # Get structured summary
         print("Getting structured summary...")
         summary = get_structured_summary(text, api_key)
         
         if "error" in summary:
-            print(f"Summary error: {summary['error']}")
             return JSONResponse(
                 status_code=500,
                 content={"error": f"Failed to generate summary: {summary['error']}"}
             )
-        
-        print("Summary generated successfully")
         
         # Generate Instagram images
         print("Generating Instagram images...")
         images_zip = generate_instagram_images(summary, api_key)
         
         if images_zip is None:
-            print("Failed to generate Instagram images")
             return JSONResponse(
                 status_code=500,
                 content={"error": "Failed to generate Instagram images"}
             )
-        
-        print(f"Instagram images generated successfully, ZIP size: {len(images_zip)} bytes")
         
         # Return the ZIP file
         return FileResponse(
@@ -433,8 +426,6 @@ def generate_instagram_images_endpoint(filename: str = Form(...)):
         
     except Exception as e:
         print(f"Error generating Instagram images: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"error": f"Failed to generate Instagram images: {str(e)}"}

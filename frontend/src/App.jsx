@@ -15,6 +15,7 @@ function App() {
     blog: '',
     podcast: ''
   });
+  const [instagramImagesReady, setInstagramImagesReady] = useState(false);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
 
@@ -57,6 +58,7 @@ function App() {
     if (!filename) return;
     setLoading(true);
     setError('');
+    setInstagramImagesReady(false);
     const formData = new FormData();
     formData.append('filename', filename);
     try {
@@ -76,8 +78,42 @@ function App() {
         podcast: data.podcast || ''
       });
       setSummary(data.summary || null);
+      setInstagramImagesReady(true);
     } catch (err) {
       setError(`Generation failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadInstagramImages = async () => {
+    if (!filename) return;
+    setLoading(true);
+    setError('');
+    const formData = new FormData();
+    formData.append('filename', filename);
+    try {
+      const res = await fetch(`${API_URL}/generate-instagram-images`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Image generation failed');
+      }
+      
+      // Download the ZIP file
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'instagram_carousel.zip';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(`Instagram images failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -163,11 +199,24 @@ function App() {
         {['instagram', 'twitter', 'blog', 'podcast'].map((type) => (
           <Grid item xs={12} md={6} key={type}>
             <Paper sx={{ p: 2, minHeight: 300 }}>
-              <Typography variant="h6" gutterBottom textTransform="capitalize">
-                {type === 'instagram' ? 'Instagram Carousel' : 
-                 type === 'twitter' ? 'Twitter Thread' : 
-                 type === 'blog' ? 'Blog Post' : 'Podcast Script'}
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" textTransform="capitalize">
+                  {type === 'instagram' ? 'Instagram Carousel' : 
+                   type === 'twitter' ? 'Twitter Thread' : 
+                   type === 'blog' ? 'Blog Post' : 'Podcast Script'}
+                </Typography>
+                {type === 'instagram' && instagramImagesReady && (
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={handleDownloadInstagramImages}
+                    disabled={loading}
+                    size="small"
+                  >
+                    {loading ? <CircularProgress size={20} /> : 'Download Images'}
+                  </Button>
+                )}
+              </Box>
               <TextField
                 multiline
                 minRows={10}

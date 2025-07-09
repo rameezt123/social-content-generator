@@ -19,9 +19,8 @@ app.add_middleware(
         "http://localhost:3000",  # Alternative local port
         "https://social-content-generator-frontend.onrender.com",  # Production frontend
         "https://*.onrender.com",  # Any Render subdomain
-        "*",  # Allow all origins for debugging
     ],
-    allow_credentials=True,
+    allow_credentials=False,  # Changed to False to allow all origins
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )

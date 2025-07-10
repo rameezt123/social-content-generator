@@ -528,39 +528,11 @@ def generate_content(filename: str = Form(...)):
         )
 
 @app.post("/generate-instagram-images")
-def generate_instagram_images_endpoint(filename: str = Form(...)):
-    """Generate Instagram carousel images from uploaded PDF using the actual Instagram copy."""
+def generate_instagram_images_endpoint(carousel_copy: str = Form(...)):
+    """Generate Instagram carousel images from provided Instagram copy text."""
     try:
-        # Get API key
-        api_key = get_openai_api_key()
-        # Construct file path
-        if not filename:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Filename is required"}
-            )
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        if not os.path.exists(file_path):
-            return JSONResponse(
-                status_code=404,
-                content={"error": f"File {filename} not found"}
-            )
-        # Extract and clean text from PDF
-        print(f"Extracting text from {file_path}...")
-        text = extract_and_clean_text(file_path)
-        # Get structured summary
-        print("Getting structured summary...")
-        summary = get_structured_summary(text, api_key)
-        if "error" in summary:
-            return JSONResponse(
-                status_code=500,
-                content={"error": f"Failed to generate summary: {summary['error']}"}
-            )
-        # Generate Instagram carousel copy (the actual text)
-        print("Generating Instagram carousel copy...")
-        carousel_copy = generate_instagram_carousel(summary, api_key)
-        # Generate images from the actual copy
-        print("Generating Instagram images from copy...")
+        # Parse the provided Instagram copy
+        print("Carousel copy being parsed:", carousel_copy)
         images_zip = generate_instagram_images_from_copy(carousel_copy)
         if images_zip is None:
             return JSONResponse(

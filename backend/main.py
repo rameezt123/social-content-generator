@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
@@ -190,7 +190,6 @@ Return ONLY the JSON array:
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
-    
     try:
         content = response.choices[0].message.content if response.choices[0].message.content is not None else ""
         # Extract JSON array
@@ -458,4 +457,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)

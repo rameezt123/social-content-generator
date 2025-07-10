@@ -4,6 +4,6 @@ pdfplumber
 openai
 anthropic
 requests
-Pillow
+Pillow>=10.0.0
 python-multipart
 python-dotenv

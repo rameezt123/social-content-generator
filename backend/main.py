@@ -359,63 +359,101 @@ def wrap_text(draw, text, font, max_width):
     return lines
 
 def create_instagram_slide_from_copy(slide, slide_num):
-    width, height = 1080, 1080
-    image = Image.new('RGB', (width, height), (70, 130, 180))
-    draw = ImageDraw.Draw(image)
-    headline = slide.get("headline", "")
-    copy = slide.get("copy", "")
-    # Fonts
-    font_headline = ImageFont.truetype("DejaVuSans-Bold.ttf", 72) if os.path.exists("DejaVuSans-Bold.ttf") else ImageFont.load_default()
-    font_copy = ImageFont.truetype("DejaVuSans.ttf", 48) if os.path.exists("DejaVuSans.ttf") else ImageFont.load_default()
-    max_text_width = width - 120
-    # Wrap headline and copy
-    headline_lines = wrap_text(draw, headline, font_headline, max_text_width)
-    copy_lines = wrap_text(draw, copy, font_copy, max_text_width)
-    # Calculate total text height
-    h_head = sum([draw.textbbox((0, 0), line, font=font_headline)[3] - draw.textbbox((0, 0), line, font=font_headline)[1] for line in headline_lines]) + (len(headline_lines)-1)*10
-    h_copy = sum([draw.textbbox((0, 0), line, font=font_copy)[3] - draw.textbbox((0, 0), line, font=font_copy)[1] for line in copy_lines]) + (len(copy_lines)-1)*8
-    total_text_height = h_head + 40 + h_copy
-    y = (height - total_text_height) // 2
-    # Draw headline (centered)
-    for line in headline_lines:
-        bbox = draw.textbbox((0, 0), line, font=font_headline)
-        w = bbox[2] - bbox[0]
-        h = bbox[3] - bbox[1]
-        x = (width - w) // 2
-        draw.text((x, y), line, fill="white", font=font_headline)
-        y += h + 10
-    y += 40  # Space between headline and copy
-    # Draw copy (centered)
-    for line in copy_lines:
-        bbox = draw.textbbox((0, 0), line, font=font_copy)
-        w = bbox[2] - bbox[0]
-        h = bbox[3] - bbox[1]
-        x = (width - w) // 2
-        draw.text((x, y), line, fill="white", font=font_copy)
-        y += h + 8
-    # Optionally, add slide number
-    slide_text = f"{slide_num}/5"
-    bbox = draw.textbbox((0, 0), slide_text, font=font_copy)
-    draw.text((width - 120, height - 80), slide_text, fill="white", font=font_copy)
-    return image
+    try:
+        width, height = 1080, 1080
+        image = Image.new('RGB', (width, height), (70, 130, 180))
+        draw = ImageDraw.Draw(image)
+        headline = slide.get("headline", "")
+        copy = slide.get("copy", "")
+        
+        # Fonts - use default fonts to avoid file loading issues
+        font_headline = ImageFont.load_default()
+        font_copy = ImageFont.load_default()
+        
+        max_text_width = width - 120
+        
+        # Wrap headline and copy
+        headline_lines = wrap_text(draw, headline, font_headline, max_text_width)
+        copy_lines = wrap_text(draw, copy, font_copy, max_text_width)
+        
+        # Calculate total text height using textbbox
+        h_head = 0
+        for line in headline_lines:
+            bbox = draw.textbbox((0, 0), line, font=font_headline)
+            h_head += bbox[3] - bbox[1]
+        h_head += (len(headline_lines) - 1) * 10 if len(headline_lines) > 1 else 0
+        
+        h_copy = 0
+        for line in copy_lines:
+            bbox = draw.textbbox((0, 0), line, font=font_copy)
+            h_copy += bbox[3] - bbox[1]
+        h_copy += (len(copy_lines) - 1) * 8 if len(copy_lines) > 1 else 0
+        
+        total_text_height = h_head + 40 + h_copy
+        y = (height - total_text_height) // 2
+        
+        # Draw headline (centered)
+        for line in headline_lines:
+            bbox = draw.textbbox((0, 0), line, font=font_headline)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            x = (width - w) // 2
+            draw.text((x, y), line, fill="white", font=font_headline)
+            y += h + 10
+        
+        y += 40  # Space between headline and copy
+        
+        # Draw copy (centered)
+        for line in copy_lines:
+            bbox = draw.textbbox((0, 0), line, font=font_copy)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            x = (width - w) // 2
+            draw.text((x, y), line, fill="white", font=font_copy)
+            y += h + 8
+        
+        # Add slide number
+        slide_text = f"{slide_num}/5"
+        bbox = draw.textbbox((0, 0), slide_text, font=font_copy)
+        draw.text((width - 120, height - 80), slide_text, fill="white", font=font_copy)
+        
+        return image
+    except Exception as e:
+        print(f"Error creating slide {slide_num}: {e}")
+        # Return a simple error slide
+        error_image = Image.new('RGB', (1080, 1080), (255, 0, 0))
+        draw = ImageDraw.Draw(error_image)
+        draw.text((540, 540), f"Error: {str(e)}", fill="white", anchor="mm")
+        return error_image
 
 def generate_instagram_images_from_copy(carousel_text):
     """Generate Instagram images from the actual Instagram carousel copy text."""
-    slides = parse_instagram_carousel(carousel_text)
-    images = []
-    for idx, slide in enumerate(slides, 1):
-        image = create_instagram_slide_from_copy(slide, idx)
-        images.append(image)
-    # Create ZIP file with all images
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        for i, image in enumerate(images, 1):
-            img_buffer = io.BytesIO()
-            image.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
-            zip_file.writestr(f'instagram_slide_{i}.png', img_buffer.getvalue())
-    zip_buffer.seek(0)
-    return zip_buffer.getvalue()
+    try:
+        slides = parse_instagram_carousel(carousel_text)
+        if not slides:
+            print("No slides parsed from carousel text")
+            return None
+            
+        images = []
+        for idx, slide in enumerate(slides, 1):
+            print(f"Creating slide {idx}: {slide.get('headline', 'No headline')}")
+            image = create_instagram_slide_from_copy(slide, idx)
+            images.append(image)
+        
+        # Create ZIP file with all images
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            for i, image in enumerate(images, 1):
+                img_buffer = io.BytesIO()
+                image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                zip_file.writestr(f'instagram_slide_{i}.png', img_buffer.getvalue())
+        
+        zip_buffer.seek(0)
+        return zip_buffer.getvalue()
+    except Exception as e:
+        print(f"Error generating Instagram images from copy: {e}")
+        return None
 
 @app.post("/upload")
 def upload_pdf(file: UploadFile = File(...)):

@@ -312,6 +312,65 @@ def generate_instagram_images(summary, api_key):
         print(f"Error generating Instagram images: {e}")
         return None
 
+def parse_instagram_carousel(carousel_text):
+    """Parse the Instagram carousel copy into a list of slides with headline, copy, and image description."""
+    import re
+    slides = []
+    slide_blocks = re.split(r"---+", carousel_text)
+    for block in slide_blocks:
+        block = block.strip()
+        if not block:
+            continue
+        headline_match = re.search(r'Headline: "([^"]+)"', block)
+        copy_match = re.search(r'\*\*Copy:\*\*:?\s*(.*)', block)
+        image_desc_match = re.search(r'Image Description:?\**:?\s*(.*)', block)
+        slides.append({
+            "headline": headline_match.group(1).strip() if headline_match else "",
+            "copy": copy_match.group(1).strip() if copy_match else "",
+            "image_desc": image_desc_match.group(1).strip() if image_desc_match else ""
+        })
+    return slides
+
+def create_instagram_slide_from_copy(slide, slide_num):
+    """Create an Instagram slide image using the actual copy (headline, copy, image description)."""
+    # For now, use a simple background color
+    width, height = 1080, 1080
+    image = Image.new('RGB', (width, height), (70, 130, 180))
+    draw = ImageDraw.Draw(image)
+    # Headline
+    headline = slide.get("headline", "")
+    copy = slide.get("copy", "")
+    # Draw headline (top)
+    font_headline = ImageFont.load_default()
+    y = 80
+    draw.text((60, y), headline, fill="white", font=font_headline)
+    y += 80
+    # Draw copy (below headline)
+    font_copy = ImageFont.load_default()
+    draw.text((60, y), copy, fill="white", font=font_copy)
+    # Optionally, add slide number
+    slide_text = f"{slide_num}/5"
+    draw.text((width - 120, height - 80), slide_text, fill="white", font=font_copy)
+    return image
+
+def generate_instagram_images_from_copy(carousel_text):
+    """Generate Instagram images from the actual Instagram carousel copy text."""
+    slides = parse_instagram_carousel(carousel_text)
+    images = []
+    for idx, slide in enumerate(slides, 1):
+        image = create_instagram_slide_from_copy(slide, idx)
+        images.append(image)
+    # Create ZIP file with all images
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        for i, image in enumerate(images, 1):
+            img_buffer = io.BytesIO()
+            image.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            zip_file.writestr(f'instagram_slide_{i}.png', img_buffer.getvalue())
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
+
 @app.post("/upload")
 def upload_pdf(file: UploadFile = File(...)):
     """Upload a PDF file and return the filename"""
@@ -389,11 +448,10 @@ def generate_content(filename: str = Form(...)):
 
 @app.post("/generate-instagram-images")
 def generate_instagram_images_endpoint(filename: str = Form(...)):
-    """Generate Instagram carousel images from uploaded PDF"""
+    """Generate Instagram carousel images from uploaded PDF using the actual Instagram copy."""
     try:
         # Get API key
         api_key = get_openai_api_key()
-        
         # Construct file path
         if not filename:
             return JSONResponse(
@@ -406,38 +464,34 @@ def generate_instagram_images_endpoint(filename: str = Form(...)):
                 status_code=404,
                 content={"error": f"File {filename} not found"}
             )
-        
         # Extract and clean text from PDF
         print(f"Extracting text from {file_path}...")
         text = extract_and_clean_text(file_path)
-        
         # Get structured summary
         print("Getting structured summary...")
         summary = get_structured_summary(text, api_key)
-        
         if "error" in summary:
             return JSONResponse(
                 status_code=500,
                 content={"error": f"Failed to generate summary: {summary['error']}"}
             )
-        
-        # Generate Instagram images
-        print("Generating Instagram images...")
-        images_zip = generate_instagram_images(summary, api_key)
-        
+        # Generate Instagram carousel copy (the actual text)
+        print("Generating Instagram carousel copy...")
+        carousel_copy = generate_instagram_carousel(summary, api_key)
+        # Generate images from the actual copy
+        print("Generating Instagram images from copy...")
+        images_zip = generate_instagram_images_from_copy(carousel_copy)
         if images_zip is None:
             return JSONResponse(
                 status_code=500,
                 content={"error": "Failed to generate Instagram images"}
             )
-        
         # Return the ZIP file using StreamingResponse
         return StreamingResponse(
             io.BytesIO(images_zip),
             media_type="application/zip",
             headers={"Content-Disposition": "attachment; filename=instagram_carousel.zip"}
         )
-        
     except Exception as e:
         print(f"Error generating Instagram images: {str(e)}")
         return JSONResponse(

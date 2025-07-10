@@ -313,28 +313,25 @@ def generate_instagram_images(summary, api_key):
         return None
 
 def parse_instagram_carousel(carousel_text):
-    """Parse the Instagram carousel copy into a list of slides with headline, copy, and image description."""
+    """Parse the Instagram carousel copy into a list of slides with headline and copy."""
     import re
     slides = []
-    # Split on slide separators
-    slide_blocks = re.split(r"\n---+\n", carousel_text)
+    # Split on slide headers like '### Slide 1'
+    slide_blocks = re.split(r"### Slide \\d+", carousel_text)
     for block in slide_blocks:
         block = block.strip()
         if not block:
             continue
-        # Headline
-        headline_match = re.search(r'Headline:\s*"([^"]+)"', block)
+        # Extract Headline
+        headline_match = re.search(r"\\*\\*Headline:([^*]+)\\*\\*", block)
         headline = headline_match.group(1).strip() if headline_match else ""
-        # Copy
-        copy_match = re.search(r'Copy:\s*(.+?)(?:\nImage Description:|$)', block, re.DOTALL)
+        # Extract Copy
+        copy_match = re.search(r"\\*\\*Copy:([^*]+)", block)
         copy = copy_match.group(1).strip() if copy_match else ""
-        # Image Description
-        image_desc_match = re.search(r'Image Description:\s*(.+)', block, re.DOTALL)
-        image_desc = image_desc_match.group(1).strip() if image_desc_match else ""
         slides.append({
             "headline": headline,
             "copy": copy,
-            "image_desc": image_desc
+            "image_desc": ""  # Not used for now
         })
     print("Parsed Instagram slides:", slides)
     return slides

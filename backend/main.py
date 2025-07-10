@@ -321,14 +321,17 @@ def parse_instagram_carousel(carousel_text):
         block = block.strip()
         if not block:
             continue
-        headline_match = re.search(r'Headline: "([^"]+)"', block)
-        copy_match = re.search(r'\*\*Copy:\*\*:?\s*(.*)', block)
-        image_desc_match = re.search(r'Image Description:?\**:?\s*(.*)', block)
+        # More flexible regex for headline, copy, and image description
+        headline_match = re.search(r'Headline:\s*["“]?([^"\n]+)["”]?', block, re.IGNORECASE)
+        copy_match = re.search(r'Copy:\s*(.*)', block, re.IGNORECASE)
+        image_desc_match = re.search(r'Image Description:\s*(.*)', block, re.IGNORECASE)
         slides.append({
             "headline": headline_match.group(1).strip() if headline_match else "",
             "copy": copy_match.group(1).strip() if copy_match else "",
             "image_desc": image_desc_match.group(1).strip() if image_desc_match else ""
         })
+    # Debug: print parsed slides
+    print("Parsed Instagram slides:", slides)
     return slides
 
 def create_instagram_slide_from_copy(slide, slide_num):

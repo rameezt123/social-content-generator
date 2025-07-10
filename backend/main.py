@@ -346,7 +346,8 @@ def wrap_text(draw, text, font, max_width):
     current_line = ""
     for word in words:
         test_line = current_line + (" " if current_line else "") + word
-        w, _ = draw.textsize(test_line, font=font)
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        w = bbox[2] - bbox[0]
         if w <= max_width:
             current_line = test_line
         else:
@@ -371,25 +372,30 @@ def create_instagram_slide_from_copy(slide, slide_num):
     headline_lines = wrap_text(draw, headline, font_headline, max_text_width)
     copy_lines = wrap_text(draw, copy, font_copy, max_text_width)
     # Calculate total text height
-    h_head = sum([draw.textsize(line, font=font_headline)[1] for line in headline_lines]) + (len(headline_lines)-1)*10
-    h_copy = sum([draw.textsize(line, font=font_copy)[1] for line in copy_lines]) + (len(copy_lines)-1)*8
+    h_head = sum([draw.textbbox((0, 0), line, font=font_headline)[3] - draw.textbbox((0, 0), line, font=font_headline)[1] for line in headline_lines]) + (len(headline_lines)-1)*10
+    h_copy = sum([draw.textbbox((0, 0), line, font=font_copy)[3] - draw.textbbox((0, 0), line, font=font_copy)[1] for line in copy_lines]) + (len(copy_lines)-1)*8
     total_text_height = h_head + 40 + h_copy
     y = (height - total_text_height) // 2
     # Draw headline (centered)
     for line in headline_lines:
-        w, h = draw.textsize(line, font=font_headline)
+        bbox = draw.textbbox((0, 0), line, font=font_headline)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
         x = (width - w) // 2
         draw.text((x, y), line, fill="white", font=font_headline)
         y += h + 10
     y += 40  # Space between headline and copy
     # Draw copy (centered)
     for line in copy_lines:
-        w, h = draw.textsize(line, font=font_copy)
+        bbox = draw.textbbox((0, 0), line, font=font_copy)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
         x = (width - w) // 2
         draw.text((x, y), line, fill="white", font=font_copy)
         y += h + 8
     # Optionally, add slide number
     slide_text = f"{slide_num}/5"
+    bbox = draw.textbbox((0, 0), slide_text, font=font_copy)
     draw.text((width - 120, height - 80), slide_text, fill="white", font=font_copy)
     return image
 

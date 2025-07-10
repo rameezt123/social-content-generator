@@ -316,21 +316,26 @@ def parse_instagram_carousel(carousel_text):
     """Parse the Instagram carousel copy into a list of slides with headline, copy, and image description."""
     import re
     slides = []
-    slide_blocks = re.split(r"---+", carousel_text)
+    # Split on slide headers
+    slide_blocks = re.split(r"\*\*Slide \d+: Headline\*\*", carousel_text)
     for block in slide_blocks:
         block = block.strip()
         if not block:
             continue
-        # More flexible regex for headline, copy, and image description
-        headline_match = re.search(r'Headline:\s*["“]?([^"\n]+)["”]?', block, re.IGNORECASE)
-        copy_match = re.search(r'Copy:\s*(.*)', block, re.IGNORECASE)
-        image_desc_match = re.search(r'Image Description:\s*(.*)', block, re.IGNORECASE)
+        # Headline: first quoted line
+        headline_match = re.search(r'["](.+?)["]', block)
+        headline = headline_match.group(1).strip() if headline_match else ""
+        # Copy: after **Copy**
+        copy_match = re.search(r'\*\*Copy\*\*\s*\n(.+?)(?:\n|$)', block, re.DOTALL)
+        copy = copy_match.group(1).strip() if copy_match else ""
+        # Image Description: after **Image Description**
+        image_desc_match = re.search(r'\*\*Image Description\*\*\s*\n(.+?)(?:\n|$)', block, re.DOTALL)
+        image_desc = image_desc_match.group(1).strip() if image_desc_match else ""
         slides.append({
-            "headline": headline_match.group(1).strip() if headline_match else "",
-            "copy": copy_match.group(1).strip() if copy_match else "",
-            "image_desc": image_desc_match.group(1).strip() if image_desc_match else ""
+            "headline": headline,
+            "copy": copy,
+            "image_desc": image_desc
         })
-    # Debug: print parsed slides
     print("Parsed Instagram slides:", slides)
     return slides
 

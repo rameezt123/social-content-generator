@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
@@ -81,7 +81,7 @@ def get_structured_summary(text: str, openai_api_key: str) -> Dict[str, Any]:
     # Extract JSON from response
     import re
     import ast
-    content = response.choices[0].message.content
+    content = response.choices[0].message.content if response.choices[0].message.content is not None else ""
     match = re.search(r'\{.*\}', content, re.DOTALL)
     if match:
         try:
@@ -110,7 +110,7 @@ SCRIPT:
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip() if response.choices[0].message.content is not None else ""
 
 def generate_instagram_carousel(summary, api_key):
     client = openai.OpenAI(api_key=api_key)
@@ -128,7 +128,7 @@ CAROUSEL:
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip() if response.choices[0].message.content is not None else ""
 
 def generate_twitter_thread(summary, api_key):
     client = openai.OpenAI(api_key=api_key)
@@ -146,7 +146,7 @@ THREAD:
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip() if response.choices[0].message.content is not None else ""
 
 def generate_blog_post(summary, api_key):
     client = openai.OpenAI(api_key=api_key)
@@ -164,7 +164,7 @@ BLOG POST:
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content.strip() if response.choices[0].message.content is not None else ""
 
 def generate_instagram_slides_data(summary, api_key):
     """Generate structured data for Instagram carousel slides"""
@@ -192,7 +192,7 @@ Return ONLY the JSON array:
     )
     
     try:
-        content = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content if response.choices[0].message.content is not None else ""
         # Extract JSON array
         import re
         match = re.search(r'\[.*\]', content, re.DOTALL)
@@ -316,13 +316,18 @@ def generate_instagram_images(summary, api_key):
 @app.post("/upload")
 def upload_pdf(file: UploadFile = File(...)):
     """Upload a PDF file and return the filename"""
-    if not file.filename.lower().endswith('.pdf'):
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
         return JSONResponse(
             status_code=400,
             content={"error": "Only PDF files are allowed"}
         )
     
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    file_path = os.path.join(UPLOAD_DIR, file.filename) if file.filename else None
+    if not file_path:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid file name"}
+        )
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"filename": file.filename, "path": file_path}
@@ -335,6 +340,11 @@ def generate_content(filename: str = Form(...)):
         api_key = get_openai_api_key()
         
         # Construct file path
+        if not filename:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Filename is required"}
+            )
         file_path = os.path.join(UPLOAD_DIR, filename)
         if not os.path.exists(file_path):
             return JSONResponse(
@@ -386,6 +396,11 @@ def generate_instagram_images_endpoint(filename: str = Form(...)):
         api_key = get_openai_api_key()
         
         # Construct file path
+        if not filename:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Filename is required"}
+            )
         file_path = os.path.join(UPLOAD_DIR, filename)
         if not os.path.exists(file_path):
             return JSONResponse(
@@ -417,11 +432,11 @@ def generate_instagram_images_endpoint(filename: str = Form(...)):
                 content={"error": "Failed to generate Instagram images"}
             )
         
-        # Return the ZIP file
-        return FileResponse(
+        # Return the ZIP file using StreamingResponse
+        return StreamingResponse(
             io.BytesIO(images_zip),
             media_type="application/zip",
-            filename="instagram_carousel.zip"
+            headers={"Content-Disposition": "attachment; filename=instagram_carousel.zip"}
         )
         
     except Exception as e:

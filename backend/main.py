@@ -339,23 +339,55 @@ def parse_instagram_carousel(carousel_text):
     print("Parsed Instagram slides:", slides)
     return slides
 
+def wrap_text(draw, text, font, max_width):
+    # Helper to wrap text to fit within max_width
+    words = text.split()
+    lines = []
+    current_line = ""
+    for word in words:
+        test_line = current_line + (" " if current_line else "") + word
+        w, _ = draw.textsize(test_line, font=font)
+        if w <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+    return lines
+
 def create_instagram_slide_from_copy(slide, slide_num):
-    """Create an Instagram slide image using the actual copy (headline, copy, image description)."""
-    # For now, use a simple background color
     width, height = 1080, 1080
     image = Image.new('RGB', (width, height), (70, 130, 180))
     draw = ImageDraw.Draw(image)
-    # Headline
     headline = slide.get("headline", "")
     copy = slide.get("copy", "")
-    # Draw headline (top)
-    font_headline = ImageFont.load_default()
-    y = 80
-    draw.text((60, y), headline, fill="white", font=font_headline)
-    y += 80
-    # Draw copy (below headline)
-    font_copy = ImageFont.load_default()
-    draw.text((60, y), copy, fill="white", font=font_copy)
+    # Fonts
+    font_headline = ImageFont.truetype("DejaVuSans-Bold.ttf", 72) if os.path.exists("DejaVuSans-Bold.ttf") else ImageFont.load_default()
+    font_copy = ImageFont.truetype("DejaVuSans.ttf", 48) if os.path.exists("DejaVuSans.ttf") else ImageFont.load_default()
+    max_text_width = width - 120
+    # Wrap headline and copy
+    headline_lines = wrap_text(draw, headline, font_headline, max_text_width)
+    copy_lines = wrap_text(draw, copy, font_copy, max_text_width)
+    # Calculate total text height
+    h_head = sum([draw.textsize(line, font=font_headline)[1] for line in headline_lines]) + (len(headline_lines)-1)*10
+    h_copy = sum([draw.textsize(line, font=font_copy)[1] for line in copy_lines]) + (len(copy_lines)-1)*8
+    total_text_height = h_head + 40 + h_copy
+    y = (height - total_text_height) // 2
+    # Draw headline (centered)
+    for line in headline_lines:
+        w, h = draw.textsize(line, font=font_headline)
+        x = (width - w) // 2
+        draw.text((x, y), line, fill="white", font=font_headline)
+        y += h + 10
+    y += 40  # Space between headline and copy
+    # Draw copy (centered)
+    for line in copy_lines:
+        w, h = draw.textsize(line, font=font_copy)
+        x = (width - w) // 2
+        draw.text((x, y), line, fill="white", font=font_copy)
+        y += h + 8
     # Optionally, add slide number
     slide_text = f"{slide_num}/5"
     draw.text((width - 120, height - 80), slide_text, fill="white", font=font_copy)
